@@ -23,6 +23,8 @@ struct QuasiTridiagonal{T, M} <: AbstractMatrix{T}
             throw(ArgumentError("incompatible lengths")) 
         return new{T, M}(b, l, d, u)
     end
+    QuasiTridiagonal(M::Int, ::Type{T}) where {T} =
+        QuasiTridiagonal(zeros(T, M), zeros(T, M-1), zeros(T, M-1), zeros(T, M-2)) 
 end
 
 Base.size(Q::QuasiTridiagonal{T, M}) where {T, M} = (M, M)

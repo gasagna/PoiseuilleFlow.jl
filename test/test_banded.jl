@@ -18,6 +18,9 @@
     # test elements
     @test A == B
 
+    # test other constructor
+    Q = QuasiTridiagonal(10, ComplexF64)
+
     # right hand size
     c = Float64[1, 2, 3, 4, 5]
     
