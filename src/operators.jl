@@ -2,7 +2,7 @@ import LinearAlgebra: mul!
 
 export laplacian!, ddx!, ddy!, d2dy2!
 
-function laplacian!(∇ψ̂::FTField{P, L, Lx}, ψ̂::FTField{P, L, Lx}) where {P, L, Lx}
+function laplacian!(∇ψ̂::SpectralField{P, L, Lx}, ψ̂::SpectralField{P, L, Lx}) where {P, L, Lx}
     d2dy2!(∇ψ̂, ψ̂)
     @inbounds @avx for l = 0:L, p = 0:P
         ∇ψ̂[p, l] -= (l*2π/Lx)^2 * ψ̂[p, l]
@@ -10,7 +10,7 @@ function laplacian!(∇ψ̂::FTField{P, L, Lx}, ψ̂::FTField{P, L, Lx}) where {
     return ∇ψ̂
 end
 
-function ddx!(dψ̂dx::FTField{P, L, Lx}, ψ̂::FTField{P, L, Lx}) where {P, L, Lx}
+function ddx!(dψ̂dx::SpectralField{P, L, Lx}, ψ̂::SpectralField{P, L, Lx}) where {P, L, Lx}
     @inbounds @avx for l = 0:L, p = 0:P
         dψ̂dx[p, l] = im*l*2π/Lx*ψ̂[p, l]
     end
@@ -18,7 +18,7 @@ function ddx!(dψ̂dx::FTField{P, L, Lx}, ψ̂::FTField{P, L, Lx}) where {P, L, 
 end
 
 # Compute first wall-normal derivative of spectral field `û` and store it in `dûdy`.
-function ddy!(dûdy::FTField{P, L}, û::FTField{P, L}) where {P, L}
+function ddy!(dûdy::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L}
     # Equation 2.4.25 of CHQZ
     @inbounds begin
         for l = 0:L
@@ -34,7 +34,7 @@ function ddy!(dûdy::FTField{P, L}, û::FTField{P, L}) where {P, L}
 end
 
 # Compute second wall-normal derivative of spectral field `û` and store it in `dûdy`.
-function d2dy2!(d2ûdy2::FTField{P, L}, û::FTField{P, L}) where {P, L}
+function d2dy2!(d2ûdy2::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L}
     @inbounds begin
         for l = 0:L
             d2ûdy2[P, l]   = 0

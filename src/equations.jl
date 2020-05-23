@@ -35,8 +35,8 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
 
         # temporaries
         tmp = (zeros(Complex{Float64}, P+1), zeros(Complex{Float64}, P+1))
-        tmpField = ntuple(i->Field(P, L), 5)
-        tmpFTField = ntuple(i->FTField(P, L), 5)
+        tmpField = ntuple(i->PhysicalField(P, L), 5)
+        tmpFTField = ntuple(i->SpectralField(P, L), 5)
 
         # ffts
         fft, ifft = ForwardFFT!(tmpField[1]), InverseFFT!(tmpFTField[1])
@@ -55,7 +55,7 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
 end
 
 
-function (eq::StreamFunEquation)(t::Real, ψ̂::FTField, N̂::FTField)
+function (eq::StreamFunEquation)(t::Real, ψ̂::SpectralField, N̂::SpectralField)
 
     # # # aliases
     û, v̂, ω̂, dω̂dy, dω̂dx = eq.tmpFTField
@@ -90,8 +90,8 @@ end
 
 function Flows.ImcA_mul!(eq::StreamFunEquation{P, L},
                           c::Real,
-                          ψ::FTField{P, L},
-                        out::FTField{P, L}) where {P, L}
+                          ψ::SpectralField{P, L},
+                        out::SpectralField{P, L}) where {P, L}
     # check time step
     abs(c) == 0.5 * eq.Δt || throw("invalid time step size")
 
@@ -108,8 +108,8 @@ end
 
 @inline function Flows.ImcA!(eq::StreamFunEquation{P, L},
                               c::Real,
-                              ψ::FTField{P, L, T},
-                            out::FTField{P, L, T}) where {P, L, T}
+                              ψ::SpectralField{P, L, T},
+                            out::SpectralField{P, L, T}) where {P, L, T}
     # check time step
     abs(c) == 0.5 * eq.Δt || throw("invalid time step size")
 
