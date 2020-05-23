@@ -1,5 +1,7 @@
 module PoiseuilleFlow
 
+using LoopVectorization
+
 include("field.jl")
 include("ftfield.jl")
 include("ffts.jl")
