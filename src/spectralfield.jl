@@ -11,8 +11,7 @@ struct SpectralField{P, L, Lx, T} <: AbstractMatrix{Complex{T}}
 end
 
 Base.parent(f::SpectralField) = f.data
-Base.size(::SpectralField{P, L}) where {P, L} = (P+1, L+1)
-# FIXME:
+Base.size(::SpectralField{P, L}) where {P, L} = (P+1, L+1) #(0:(P+1), 0:(L+1))
 Base.IndexStyle(::Type{<:SpectralField}) = Base.IndexLinear()
 Base.similar(u::SpectralField{P, L, Lx, T}) where {P, L, Lx, T} = SpectralField(P, L, Lx, T)
 
@@ -20,19 +19,31 @@ Base.similar(u::SpectralField{P, L, Lx, T}) where {P, L, Lx, T} = SpectralField(
 @inline reindex(i) = i
 
 # linear indexing
-Base.@propagate_inbounds function Base.getindex(ψ̂::SpectralField{P, L}, i...) where {P, L}
-    # FIXME:
-    # @boundscheck checkbounds(parent(ψ̂), i...)
-    @inbounds ret = parent(ψ̂)[reindex(i...)...]
+Base.@propagate_inbounds function Base.getindex(ψ̂::SpectralField, i::Int)
+    @boundscheck checkbounds(parent(ψ̂), i)
+    @inbounds ret = parent(ψ̂)[i]
     return ret
 end
 
-Base.@propagate_inbounds function Base.setindex!(ψ̂::SpectralField{P, L}, v, i...) where {P, L}
-    # FIXME:
-    # @boundscheck checkbounds(parent(ψ̂), i...)
-    @inbounds parent(ψ̂)[reindex(i...)...] = v
+Base.@propagate_inbounds function Base.setindex!(ψ̂::SpectralField, v, i::Int)
+    @boundscheck checkbounds(parent(ψ̂), i)
+    @inbounds parent(ψ̂)[i] = v
     return v
 end
+
+# cartesian indexing
+Base.@propagate_inbounds function Base.getindex(ψ̂::SpectralField, p::Int, l::Int)
+    @boundscheck checkbounds(parent(ψ̂), p+1, l+1)
+    @inbounds ret = parent(ψ̂)[p+1, l+1]
+    return ret
+end
+
+Base.@propagate_inbounds function Base.setindex!(ψ̂::SpectralField, v, p::Int, l::Int)
+    @boundscheck checkbounds(parent(ψ̂), p+1, l+1)
+    @inbounds parent(ψ̂)[p+1, l+1] = v
+    return v
+end
+
 
 # save(filename::String, u::SpectralField) =
 #     (writedlm(filename, vcat(real.(parent(u)), imag.(parent(u))); nothing)

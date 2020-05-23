@@ -19,3 +19,16 @@ function chebdiff(P::Int, ::Type{T}=Float64) where {T}
     D = D - diagm(0=>vec(sum(D, dims=2)))
     return D
 end
+
+
+# Define chebyshev polynomial functions (mainly for testing)
+T0(x) = one(x)
+T1(x) = x
+for p = 2:10
+    curr  = Symbol("T", p)
+    prev  = Symbol("T", p-1)
+    prev2 = Symbol("T", p-2)
+    @eval begin
+        $curr(x) = 2*x*$prev(x) - $prev2(x)
+    end
+end
