@@ -2,6 +2,7 @@ import LinearAlgebra: mul!
 
 export laplacian!, ddx!, ddy!, d2dy2!
 
+# the arguments must be different 
 function laplacian!(∇ψ̂::SpectralField{P, L, Lx}, ψ̂::SpectralField{P, L, Lx}) where {P, L, Lx}
     d2dy2!(∇ψ̂, ψ̂)
     @inbounds @avx for l = 0:L, p = 0:P

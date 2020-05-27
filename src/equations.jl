@@ -1,76 +1,72 @@
-import LinearAlgebra: I, lu!, diagm, mul!, ldiv!
+import HelmoltzSolvers: CoupledHelmoltzSolver, solve!, ChebCoeffs
 import Flows
+import FFTW
 
 export StreamFunEquation
 
-struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
-    BpA::V1
-    BmAfact::V2
-    tmp::NT
-    Δt::Float64
-    α::Float64
-    D::Matrix{Float64}
-    D²::Matrix{Float64}
-    fft::FT
-    ifft::IFT
-    tmpField::TFT
-    tmpFTField::TFTT
+struct StreamFunEquation{P, L, TPF, TSF, S, FT, IFT, R}
+    tmpPField::TPF
+    tmpSField::TSF
+       solver::S
+           Re::Float64
+          fft::FT
+         ifft::IFT
+         r_re::R
+         r_im::R
 
-    function StreamFunEquation(P::Int, L::Int, Lx::Real, Re::Real, Δt::Real)
-        D  = chebdiff(P)
-        y  = chebpoints(P)
-        u₀ = 1 .- y.^2
-        α = 2π/Lx
+    function StreamFunEquation( P::Int,   L::Int,
+                               Lx::Real, Re::Real; flags::UInt32=FFTW.MEASURE)
+        # helmoltz solver
+        solver = CoupledHelmoltzSolver(P)
 
-        # matrices for the time stepping
-        B = [D*D - (l*α)^2*I for l = 0:L]
-        A = [B[l+1]*B[l+1]/Re - 2*im*l*α*I - diagm(0=>u₀*im*l*α)*B[l+1] for l = 0:L]
-        BpA = [B[l+1] .+ 0.5 .* Δt .* A[l+1] for l = 0:L]
-        BmA = [B[l+1] .- 0.5 .* Δt .* A[l+1] for l = 0:L]
-        BmAfact = [lu!( [ basis_vector(1, P+1)';
-                          D[1, :]';
-                          BmA[l+1][3:end-2, :];
-                          D[end, :]';
-                          basis_vector(P+1, P+1)' ] ) for l = 0:L]
+        # temporary storage for the solution of the Helmoltz problems
+        r_re = ChebCoeffs(P)
+        r_im = ChebCoeffs(P)
 
         # temporaries
-        tmp = (zeros(Complex{Float64}, P+1), zeros(Complex{Float64}, P+1))
-        tmpField = ntuple(i->PhysicalField(P, L), 5)
-        tmpFTField = ntuple(i->SpectralField(P, L), 5)
+        tmpPField = ntuple(i->PhysicalField(P, L, Lx), 5)
+        tmpSField = ntuple(i->SpectralField(P, L, Lx), 5)
 
         # ffts
-        fft, ifft = ForwardFFT!(tmpField[1]), InverseFFT!(tmpFTField[1])
+         fft = ForwardFFT!(tmpPField[1], flags)
+        ifft = InverseFFT!(tmpSField[1], flags)
 
         return new{P,
                    L,
-                   typeof(BpA),
-                   typeof(BmAfact),
-                   typeof(tmp),
+                   typeof(tmpPField),
+                   typeof(tmpSField),
+                   typeof(solver),
                    typeof(fft),
                    typeof(ifft),
-                   typeof(tmpField),
-                   typeof(tmpFTField)}(BpA, BmAfact, tmp, Δt, α,
-                   D, D*D, fft, ifft, tmpField, tmpFTField)
+                   typeof(r_re)}(tmpPField, tmpSField, solver, Re, fft, ifft, r_re, r_im)
     end
 end
 
 
 function (eq::StreamFunEquation)(t::Real, ψ̂::SpectralField, N̂::SpectralField)
+    # the state is always the streamfunction because we can calculate the
+    # velocity components from it directly, rather than as a solution of a BVP
 
-    # # # aliases
-    û, v̂, ω̂, dω̂dy, dω̂dx = eq.tmpFTField
-    u, v, N, dωdy, dωdx = eq.tmpField
+    # aliases
+    û, v̂, ω̂, dω̂dy, dω̂dx = eq.tmpSField
+    u, v, N, dωdy, dωdx = eq.tmpPField
 
     # calculate velocities
-    ddy!(û, ψ̂, eq)
-    ddx!(v̂, ψ̂, eq); v̂ .*= -1
+    ddy!(û, ψ̂)
+    ddx!(v̂, ψ̂); v̂ .*= -1
 
     # calculate vorticity
-    laplacian!(ω̂, ψ̂, eq)
+    laplacian!(ω̂, ψ̂)
 
     # and its derivatives
-    ddy!(dω̂dy, ω̂, eq)
-    ddx!(dω̂dx, ω̂, eq)
+    ddy!(dω̂dy, ω̂)
+    ddx!(dω̂dx, ω̂)
+
+    # add laminar flow velocity to û before transforming
+    # these are the Chebyshev coefficients of the polynomial
+    # u₀(y) = 1 - y^2 = c₀ T₀(y) + c₂ T₂(y)
+    @inbounds û[0, 0] += 0.5
+    @inbounds û[2, 0] -= 0.5
 
     # transform
     eq.ifft(dωdy, dω̂dy)
@@ -79,7 +75,7 @@ function (eq::StreamFunEquation)(t::Real, ψ̂::SpectralField, N̂::SpectralFiel
     eq.ifft(v, v̂)
 
     # calc N
-    N .= .- u .* dωdx .- v .* dωdy
+    N .= .- u .* dωdx .- v .* (dωdy .- 2)
 
     # and invert
     eq.fft(N̂, N)
@@ -92,56 +88,65 @@ function Flows.ImcA_mul!(eq::StreamFunEquation{P, L},
                           c::Real,
                           ψ::SpectralField{P, L},
                         out::SpectralField{P, L}) where {P, L}
-    # check time step
-    abs(c) == 0.5 * eq.Δt || throw("invalid time step size")
 
-    # compute product
-    tmp1, tmp2 = eq.tmp
-    for l = 0:L
-        _copycol!(tmp1, ψ.data, l+1)
-        mul!(tmp2, eq.BpA[l+1], tmp1)
-        _copycol!(out.data, tmp2, l+1)
-    end
+    # calculate vorticity from streamfunction and write to out
+    ω = laplacian!(eq.tmpSField[1], ψ)
+
+    # calculate laplacian of the vorticity
+    laplacian!(out, ω)
+
+    # calc actual term
+    out .= 1 .- c .* out ./ eq.Re
 
     return out
 end
 
+"""
+    Solve (I - dt/2/Re[D² - l²α²])ωₗ = rₗ
+                       (D² - l²α²)ψₗ = ωₗ
+    with
+                    ψₗ(±1) = ψₗ'(±1) = 0
+    for all l ∈ [0, P].
+
+    The input argument `r` is calculated on the vorticity equation
+"""
 @inline function Flows.ImcA!(eq::StreamFunEquation{P, L},
                               c::Real,
-                              ψ::SpectralField{P, L, T},
-                            out::SpectralField{P, L, T}) where {P, L, T}
-    # check time step
-    abs(c) == 0.5 * eq.Δt || throw("invalid time step size")
-
-    # solve systems
-    tmp1, tmp2 = eq.tmp
+                              r::SpectralField{P, L, Lx, T},
+                              ψ::SpectralField{P, L, Lx, T}) where {P, L, Lx, T}
+    # fundamental wavenumber
+    α = 2π/Lx
 
     for l = 0:L
-        _copycol!(tmp1, ψ.data, l+1)
-        tmp1[1] = 0; tmp1[end]   = 0
-        tmp1[2] = 0; tmp1[end-1] = 0
-        ldiv!(eq.BmAfact[l+1], tmp1)
-        _copycol!(out.data, tmp1, l+1)
+        # coefficients of the Helmoltz problem
+        θ₀ = -c/eq.Re # c is usually Δt/2 for the forward problem (check adjoint)
+        θ₁ = -(1 + (l*α)^2 / eq.Re)
+        θ₂ = 1
+        θ₃ = (l*α)^2
+
+        # copy column of r, solve, then copy r back to the l-th column of ψ
+        _copycol!(eq.r_re, r, l, real)
+        _copycol!(eq.r_im, r, l, imag)
+        solve!(eq.solver, (θ₀, θ₁, θ₂, θ₃), eq.r_re)
+        solve!(eq.solver, (θ₀, θ₁, θ₂, θ₃), eq.r_im)
+        _copycol!(ψ, eq.r_re, eq.r_im, l)
     end
 
-    return out
+    return ψ
 end
-
 
 # utils to avoid allocation of views (get rid of this in julia 1.5)
 # https://github.com/JuliaLang/julia/pull/34126
-function _copycol!(v::AbstractVector, M::AbstractMatrix, c::Int)
-    length(v) == size(M, 1) || throw(ArgumentError("invalid size"))
-    for i = 1:length(v)
-        @inbounds v[i] = M[i, c]
+function _copycol!(r::ChebCoeffs{T, P}, ψ::SpectralField{P}, c::Int, fun::F) where {T, P, F}
+    @inbounds @simd for p = 0:P
+        r[p] = fun(ψ[p, c])
     end
     return nothing
 end
 
-function _copycol!(M::AbstractMatrix, v::AbstractVector, c::Int)
-    length(v) == size(M, 1) || throw(ArgumentError("invalid size"))
-    for i = 1:length(v)
-        @inbounds M[i, c] = v[i]
+function _copycol!(ψ::SpectralField{P}, r_re::ChebCoeffs{T, P}, r_im::ChebCoeffs{T, P}, c::Int) where {T, P}
+    @inbounds @simd for p = 0:P
+        ψ[p, c] = r_re[p] + im * r_im[p]
     end
     return nothing
 end

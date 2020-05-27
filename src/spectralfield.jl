@@ -5,6 +5,8 @@ export SpectralField
 struct SpectralField{P, L, Lx, T} <: AbstractMatrix{Complex{T}}
     data::Matrix{Complex{T}}
     function SpectralField(P::Int, L::Int, Lx::Real, ::Type{T}=Float64) where {T<:Real}
+        # only available for an even number of expansion coefficients
+        isodd(P) || throw(ArgumentError("P must be odd: got $P"))
         data = zeros(Complex{T}, P+1, L+1)
         return new{P, L, Lx, T}(data)
     end
@@ -43,6 +45,12 @@ Base.@propagate_inbounds function Base.setindex!(ψ̂::SpectralField, v, p::Int,
     @inbounds parent(ψ̂)[p+1, l+1] = v
     return v
 end
+
+# For fast broadcasting
+# https://discourse.julialang.org/t/why-is-there-a-performance-hit-on-broadcasting-with-offsetarrays/32194
+Base.dataids(ψ̂::SpectralField) = Base.dataids(parent(ψ̂))
+Broadcast.broadcast_unalias(dest::SpectralField, src::SpectralField) = 
+    parent(dest) === parent(src) ? src : Broadcast.unalias(dest, src)
 
 
 # save(filename::String, u::SpectralField) =

@@ -20,7 +20,7 @@
 
     # this represents the field cos(2π/Lx * x) * T_4(y)
     û .*= 0
-    û[4, 1] = 0.25 # note it's one fourth
+    û[4, 1] = 0.5
     ifft(u, û)
 
     # obtain grid
@@ -36,6 +36,9 @@
                     0.2 .* PoiseuilleFlow.T2.(y)*sin(1*2π/Lx*xi))
     end
     fft(û, u)
-    @test û[1, 2] ≈  0.10
-    @test û[2, 1] ≈ -0.05*im
+    # note there is a factor of two arising from the DFT along the homogeneous
+    # direction. The additional factor of two for the wall-normal transform is
+    # taken care of by the specialised function
+    @test û[1, 2] ≈  0.2
+    @test û[2, 1] ≈ -0.1*im
 end
