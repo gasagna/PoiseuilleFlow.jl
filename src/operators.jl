@@ -25,8 +25,8 @@ function ddy!(dûdy::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L
         for l = 0:L
             dûdy[P, l]   = 0
             dûdy[P-1, l] = 2*P*û[P, l]
-            for k = reverse(0:P-2)
-                dûdy[k, l] = (dûdy[k+2, l] + 2*(k+1)*û[k+1, l])
+            for p = reverse(0:P-2)
+                dûdy[p, l] = (dûdy[p+2, l] + 2*(p+1)*û[p+1, l])
             end
             dûdy[0, l] *= 0.5
         end
@@ -44,12 +44,12 @@ function d2dy2!(d2ûdy2::SpectralField{P, L}, û::SpectralField{P, L}) where {
             # compute the first derivative, but only store what's required to compute
             # the second derivative. This is faster than using ddy! twice.
             dûdy_p1, dûdy_p2 = 2*P*û[P, l], zero(eltype(û))
-            for k = reverse(0:P-2)
+            for p = reverse(0:P-2)
                 # second derivative
-                d2ûdy2[k, l] = d2ûdy2[k+2, l] + 2*(k+1)*dûdy_p1
+                d2ûdy2[p, l] = d2ûdy2[p+2, l] + 2*(p+1)*dûdy_p1
 
                 # update first derivative
-                dûdy_p1, dûdy_p2 = (dûdy_p2 + 2*(k+1)*û[k+1, l]), dûdy_p1
+                dûdy_p1, dûdy_p2 = (dûdy_p2 + 2*(p+1)*û[p+1, l]), dûdy_p1
             end
             d2ûdy2[0, l] *= 0.5
         end
