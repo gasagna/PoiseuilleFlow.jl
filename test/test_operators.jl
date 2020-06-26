@@ -1,48 +1,32 @@
 @testset "operators                              " begin
-
-    P, L = 3, 3
+    # grid
+    P, L = 5, 4
     Lx = 10
-    Re = 1
+    α = 2π / Lx 
 
-    # create fields
-    û   = FTField(P, L)
-    dû  = FTField(P, L)
-    d2û = FTField(P, L)
-
-    # # set data for x direction
-    # û .= 0
-    # û[:, 2+1] .= 1
-    # ddx!(dû, û, eq)
-    # @test all(dû[:, 2+1] .== im*2*2π/Lx)
-
-    # set data for y direction
-    û .= 0
-
-    # set the polinomial x
-    for l = 0:L
-        û[1, l] = 1
-    end
-
-    ddy!(dû, û)
-    d2dy2!(d2û, û)
-
-    # the derivative is one
-    for l = 0:L
-        @test dû[ 0, l] == 1
-        @test d2û[0, l] == 0
-    end
+    # make grid
+    y, x = grid(P, L, Lx)
     
-    # FIXME: add when we have transforms available
+    # construct fields
+    ψ      = PhysicalField(P, L, Lx, (x, y) -> cos(α*x) + y^4 + y^3 * sin(2*α*x) )
+    dψdy   = PhysicalField(P, L, Lx, (x, y) -> 4*y^3 + 3*y^2 * sin(2*α*x))
+    dψdx   = PhysicalField(P, L, Lx, (x, y) -> - α   * sin(α*x) + y^3 * 2*α*cos(2*α*x))
+    d²ψdy² = PhysicalField(P, L, Lx, (x, y) -> 12*y^2 + 6*y * sin(2*α*x))
+    ∇²ψ    = PhysicalField(P, L, Lx, (x, y) -> 12*y^2 + 6*y * sin(2*α*x)  -α^2 * cos(α*x) - y^3 * (2α)^2 * sin(2*α*x) )
+    
+    dψ = PhysicalField(P, L, Lx)
+    ψ̂  = SpectralField(P, L, Lx)
+    dψ̂ = SpectralField(P, L, Lx)
+    
+    # define transforms
+    _fft  = ForwardFFT!(similar(ψ))
+    _ifft = InverseFFT!(similar(ψ̂))
 
-    # û[:, 0+1] .= (1 .- y.^2)
-    # ddy!(dû, û, eq)
-    # @test maximum(abs, dû[:, 0+1] .+ 2 .* y) < 1e-14
-
-    # # set data for laplacian
-    # y = chebpoints(P)
-    # û .= 0
-    # û[:, 3+1] .= (1 .- y.^2)
-    # laplacian!(dû, û, eq)
-    # @test maximum(abs, dû[:, 3+1] .- (.- 2 .- (3*2π/Lx)^2.0*(1 .- y.^2))) < 1e-14
-
+    # transform field
+    _fft(ψ̂, ψ)
+    
+    @test all(isapprox.(_ifft(dψ,       ddy!(dψ̂, ψ̂)), dψdy;   atol=1e-12))
+    @test all(isapprox.(_ifft(dψ,       ddx!(dψ̂, ψ̂)), dψdx;   atol=1e-12))
+    @test all(isapprox.(_ifft(dψ, laplacian!(dψ̂, ψ̂)), ∇²ψ;    atol=1e-12))
+    @test all(isapprox.(_ifft(dψ,     d2dy2!(dψ̂, ψ̂)), d²ψdy²; atol=1e-12))
 end
