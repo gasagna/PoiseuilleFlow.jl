@@ -26,7 +26,7 @@ function ddy!(dûdy::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L
             dûdy[P, l]   = 0
             dûdy[P-1, l] = 2*P*û[P, l]
             for k = reverse(0:P-2)
-                dûdy[k, l] = (û[k+2, l] + 2*(k+1)*û[k+1, l])
+                dûdy[k, l] = (dûdy[k+2, l] + 2*(k+1)*û[k+1, l])
             end
             dûdy[0, l] *= 0.5
         end
@@ -34,7 +34,8 @@ function ddy!(dûdy::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L
     return dûdy
 end
 
-# Compute second wall-normal derivative of spectral field `û` and store it in `dûdy`.
+# Compute wall-normal second derivative of spectral field `û` and store it in `d2ûdy2`.
+# See page 7 of notes
 function d2dy2!(d2ûdy2::SpectralField{P, L}, û::SpectralField{P, L}) where {P, L}
     @inbounds begin
         for l = 0:L
@@ -42,13 +43,13 @@ function d2dy2!(d2ûdy2::SpectralField{P, L}, û::SpectralField{P, L}) where {
             d2ûdy2[P-1, l] = 0
             # compute the first derivative, but only store what's required to compute
             # the second derivative. This is faster than using ddy! twice.
-            dûdy_p0, dûdy_p1, dûdy_p2 = 2*P*û[P, l], zero(eltype(û)), zero(eltype(û))
+            dûdy_p1, dûdy_p2 = 2*P*û[P, l], zero(eltype(û))
             for k = reverse(0:P-2)
                 # second derivative
                 d2ûdy2[k, l] = d2ûdy2[k+2, l] + 2*(k+1)*dûdy_p1
 
                 # update first derivative
-                dûdy_p0, dûdy_p1, dûdy_p2 = (dûdy_p2 + 2*(k+1)*û[k+1, l]), dûdy_p0, dûdy_p2
+                dûdy_p1, dûdy_p2 = (dûdy_p2 + 2*(k+1)*û[k+1, l]), dûdy_p1
             end
             d2ûdy2[0, l] *= 0.5
         end
