@@ -1,7 +1,7 @@
 module PoiseuilleFlow
 
-include("field.jl")
-include("ftfield.jl")
+include("physicalfield.jl")
+include("spectralfield.jl")
 include("ffts.jl")
 include("chebutils.jl")
 include("equations.jl")
