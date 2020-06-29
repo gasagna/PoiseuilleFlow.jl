@@ -28,14 +28,14 @@ Base.@propagate_inbounds function Base.setindex!(ψ̂::FTField{P, L}, v, i...) w
     return v
 end
 
-save(filename::String, u::FTField) =
-    (writedlm(filename, vcat(real.(parent(u)), imag.(parent(u))); nothing)
+# save(filename::String, u::FTField) =
+#     (writedlm(filename, vcat(real.(parent(u)), imag.(parent(u))); nothing)
 
-function load(filename::String)
-    data = readdlm(filename)
-    PP, LL = size(data)
-    P = div(PP, 2)-1
-    L = LL - 1
-    u = FTField(P, L)
-    parent(u) .= 
-end
+# function load(filename::String)
+#     data = readdlm(filename)
+#     PP, LL = size(data)
+#     P = div(PP, 2)-1
+#     L = LL - 1
+#     u = FTField(P, L)
+#     parent(u) .= 
+# end
