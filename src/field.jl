@@ -6,6 +6,13 @@ struct Field{P, L, T} <: AbstractMatrix{T}
         data = zeros(T, P+1, 2*L+1)
         return new{P, L, T}(data)
     end
+
+    # construct from a function accepting x and y
+    function Field(P::Int, L::Int, Lx::Real, fun::F, ::Type{T}=Float64) where {F, T<:Real}
+        y, x = grid(P, L, Lx)
+        data = fun.(x', y)
+        return new{P, L, T}(data)
+    end
 end
 
 Base.parent(f::Field) = f.data
