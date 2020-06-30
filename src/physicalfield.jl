@@ -33,3 +33,16 @@ Base.@propagate_inbounds function Base.setindex!(ψ::PhysicalField, v, I...)
 end
 
 grid(P::Int, LD::Int, Lx::Real) = chebpoints(P), (0:(2LD+1))/(2LD+2)*Lx
+
+save(filename::String, ψ::PhysicalField) =
+    (writedlm(filename, parent(ψ)); nothing)
+
+function load(filename::String)
+    data = readdlm(filename)
+    PP, LL = size(data)
+    P = PP - 1
+    LD = div(LL, 2) - 1
+    ψ = PhysicalField(P, LD, eltype(data))
+    parent(ψ) .= data
+    return ψ
+end

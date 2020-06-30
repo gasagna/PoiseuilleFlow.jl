@@ -31,15 +31,3 @@ Base.@propagate_inbounds function Base.setindex!(ψ̂::SpectralField, v, i...)
     @inbounds parent(ψ̂)[i...] = v
     return v
 end
-
-# save(filename::String, u::SpectralField) =
-#     (writedlm(filename, vcat(real.(parent(u)), imag.(parent(u))); nothing)
-
-# function load(filename::String)
-#     data = readdlm(filename)
-#     PP, LL = size(data)
-#     P = div(PP, 2)-1
-#     L = LL - 1
-#     u = SpectralField(P, L)
-#     parent(u) .= 
-# end
