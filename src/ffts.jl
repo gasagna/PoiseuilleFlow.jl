@@ -1,6 +1,14 @@
 import FFTW
 import LinearAlgebra
 
+export ForwardFFT!, InverseFFT!, up_dealias_size, down_dealias_size
+
+# Return the smallest `LD` that avoids aliasing on a `SpectralField{P, L, LD}`
+up_dealias_size(L::Int) = L + L>>1
+
+# Return the largest `L`that avoids aliasing on a `SpectralField{P, L, LD}`
+down_dealias_size(LD::Int) = findlast(L->(up_dealias_size(L) ≤ LD), 1:LD)
+
 # set to zero Fourier coefficients
 function _apply_mask(û::SpectralField{P, LD, L}) where {P, LD, L}
     for l = L+1:LD+1
@@ -10,8 +18,6 @@ function _apply_mask(û::SpectralField{P, LD, L}) where {P, LD, L}
     end
     return û
 end
-
-export ForwardFFT!, InverseFFT!
 
 struct ForwardFFT!{P, LD, PLAN}
     plan::PLAN
