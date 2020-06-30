@@ -3,20 +3,23 @@ import Flows
 
 export StreamFunEquation
 
-struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
+
+struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
     BpA::V1
     BmAfact::V2
     tmp::NT
     Δt::Float64
     α::Float64
-    D::Matrix{Float64}
-    D²::Matrix{Float64}
+    D::M
+    D²::M
     fft::FT
     ifft::IFT
-    tmpField::TFT
-    tmpFTField::TFTT
+    tmpPField::TFT
+    tmpSField::TFTT
 
-    function StreamFunEquation(P::Int, L::Int, Lx::Real, Re::Real, Δt::Real)
+    function StreamFunEquation(P::Int,   L::Int,  LD::Int, 
+                              Lx::Real, Re::Real, Δt::Real; flags::UInt32=FFTW.EXHAUSTIVE, 
+                                                        timelimit::Real=FFTW.NO_TIMELIMIT)
         D  = chebdiff(P)
         y  = chebpoints(P)
         u₀ = 1 .- y.^2
@@ -34,12 +37,17 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
                           basis_vector(P+1, P+1)' ] ) for l = 0:L]
 
         # temporaries
-        tmp = (zeros(Complex{Float64}, P+1), zeros(Complex{Float64}, P+1))
-        tmpField = ntuple(i->PhysicalField(P, L), 5)
-        tmpFTField = ntuple(i->SpectralField(P, L), 5)
+        tmp = ntuple(i->zeros(Complex{Float64}, P+1), 2)
+        tmpPField = ntuple(i->PhysicalField(P, LD), 5)
+        tmpSField = ntuple(i->SpectralField(P, L, LD), 5)
 
         # ffts
-        fft, ifft = ForwardFFT!(tmpField[1]), InverseFFT!(tmpFTField[1])
+         fft = ForwardFFT!(tmpPField[1], flags, timelimit)
+        ifft = InverseFFT!(tmpSField[1], flags, timelimit)
+
+        # fast multpliers
+        MD  = Multiplier(D)
+        MDD = Multiplier(D*D)
 
         return new{P,
                    L,
@@ -48,9 +56,10 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
                    typeof(tmp),
                    typeof(fft),
                    typeof(ifft),
-                   typeof(tmpField),
-                   typeof(tmpFTField)}(BpA, BmAfact, tmp, Δt, α,
-                   D, D*D, fft, ifft, tmpField, tmpFTField)
+                   typeof(tmpPField),
+                   typeof(tmpSField),
+                   typeof(MD)}(BpA, BmAfact, tmp, Δt, α,
+                   MD, MDD, fft, ifft, tmpPField, tmpSField)
     end
 end
 
@@ -58,8 +67,8 @@ end
 function (eq::StreamFunEquation)(t::Real, ψ̂::SpectralField, N̂::SpectralField)
 
     # # # aliases
-    û, v̂, ω̂, dω̂dy, dω̂dx = eq.tmpFTField
-    u, v, N, dωdy, dωdx = eq.tmpField
+    û, v̂, ω̂, dω̂dy, dω̂dx = eq.tmpSField
+    u, v, N, dωdy, dωdx = eq.tmpPField
 
     # calculate velocities
     ddy!(û, ψ̂, eq)
@@ -97,7 +106,7 @@ function Flows.ImcA_mul!(eq::StreamFunEquation{P, L},
 
     # compute product
     tmp1, tmp2 = eq.tmp
-    for l = 0:L
+    @inbounds for l = 0:L
         _copycol!(tmp1, ψ.data, l+1)
         mul!(tmp2, eq.BpA[l+1], tmp1)
         _copycol!(out.data, tmp2, l+1)
@@ -108,15 +117,15 @@ end
 
 @inline function Flows.ImcA!(eq::StreamFunEquation{P, L},
                               c::Real,
-                              ψ::SpectralField{P, L, T},
-                            out::SpectralField{P, L, T}) where {P, L, T}
+                              ψ::SpectralField{P, L},
+                            out::SpectralField{P, L}) where {P, L}
     # check time step
     abs(c) == 0.5 * eq.Δt || throw("invalid time step size")
 
     # solve systems
     tmp1, tmp2 = eq.tmp
 
-    for l = 0:L
+    @inbounds for l = 0:L
         _copycol!(tmp1, ψ.data, l+1)
         tmp1[1] = 0; tmp1[end]   = 0
         tmp1[2] = 0; tmp1[end-1] = 0
@@ -126,23 +135,3 @@ end
 
     return out
 end
-
-
-# utils to avoid allocation of views (get rid of this in julia 1.5)
-# https://github.com/JuliaLang/julia/pull/34126
-function _copycol!(v::AbstractVector, M::AbstractMatrix, c::Int)
-    length(v) == size(M, 1) || throw(ArgumentError("invalid size"))
-    for i = 1:length(v)
-        @inbounds v[i] = M[i, c]
-    end
-    return nothing
-end
-
-function _copycol!(M::AbstractMatrix, v::AbstractVector, c::Int)
-    length(v) == size(M, 1) || throw(ArgumentError("invalid size"))
-    for i = 1:length(v)
-        @inbounds M[i, c] = v[i]
-    end
-    return nothing
-end
-
