@@ -2,6 +2,10 @@ using PoiseuilleFlow
 using FFTW
 using Printf
 using Flows
+using LinearAlgebra
+
+FFTW.set_num_threads(1)
+LinearAlgebra.BLAS.set_num_threads(1)
 
 P  = 91
 Lx = 6π
