@@ -7,13 +7,13 @@ using LinearAlgebra
 FFTW.set_num_threads(1)
 LinearAlgebra.BLAS.set_num_threads(1)
 
-P  = 91
+P  = 101
 Lx = 6π
 α  = 2π / Lx
 Re = 1000
 Δt = 0.01;
 
-for LD in 20:200
+for LD in 20:400
     # active number of waves
     L = down_dealias_size(LD)
 
@@ -37,7 +37,8 @@ for LD in 20:200
     ϕ = flow(eq, eq, CNRK2(ψ̂), TimeStepConstant(Δt));
 
     # march
-    t = minimum([@elapsed ϕ(ψ̂, (0, 10*Δt)) for i = 1:10])
+    t = minimum([@elapsed ϕ(ψ̂, (0, Δt)) for i = 1:10])
 
     @printf "%10.2f %04d\n" 10^9 * t / ((P+1) * (2LD+2) * log(2LD+2)) LD
+    flush(stdout)
 end
