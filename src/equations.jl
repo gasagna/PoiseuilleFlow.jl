@@ -38,7 +38,7 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
 
         # temporaries
         tmp = ntuple(i->zeros(Complex{Float64}, P+1), 2)
-        tmpPField = ntuple(i->PhysicalField(P, LD), 5)
+        tmpPField = ntuple(i->PhysicalField(P, LD, Lx), 5)
         tmpSField = ntuple(i->SpectralField(P, L, LD), 5)
 
         # ffts
