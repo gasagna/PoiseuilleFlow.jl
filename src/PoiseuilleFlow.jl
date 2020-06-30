@@ -3,6 +3,7 @@ module PoiseuilleFlow
 using LinearAlgebra
 
 include("physicalfield.jl")
+include("norms.jl")
 include("spectralfield.jl")
 include("multiplier.jl")
 include("ffts.jl")
