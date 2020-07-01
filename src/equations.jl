@@ -1,5 +1,6 @@
 import LinearAlgebra: I, lu!, diagm, mul!, ldiv!
 import Flows
+import FDGrids
 
 export StreamFunEquation
 
@@ -19,14 +20,17 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
 
     function StreamFunEquation(P::Int,   L::Int,  LD::Int, 
                               Lx::Real, Re::Real, Δt::Real; flags::UInt32=FFTW.EXHAUSTIVE, 
-                                                        timelimit::Real=FFTW.NO_TIMELIMIT)
-        D  = chebdiff(P)
+                                                        timelimit::Real=FFTW.NO_TIMELIMIT, 
+                                                            width::Int=7)
+        # D  = chebdiff(P)
         y  = chebpoints(P)
+        D  = FDGrids.full(FDGrids.DiffMatrix(y, width, 1))
+        D2 = FDGrids.full(FDGrids.DiffMatrix(y, width, 2))
         u₀ = 1 .- y.^2
         α = 2π/Lx
 
         # matrices for the time stepping
-        B = [D*D - (l*α)^2*I for l = 0:L]
+        B = [D2 - (l*α)^2*I for l = 0:L]
         A = [B[l+1]*B[l+1]/Re - 2*im*l*α*I - diagm(0=>u₀*im*l*α)*B[l+1] for l = 0:L]
         BpA = [B[l+1] .+ 0.5 .* Δt .* A[l+1] for l = 0:L]
         BmA = [B[l+1] .- 0.5 .* Δt .* A[l+1] for l = 0:L]
