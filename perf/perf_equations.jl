@@ -13,7 +13,7 @@ Lx = 6π
 Re = 1000
 Δt = 0.01;
 
-for LD in 20:400
+for LD in 251:350
     # active number of waves
     L = down_dealias_size(LD)
 
@@ -37,7 +37,7 @@ for LD in 20:400
     ϕ = flow(eq, eq, CNRK2(ψ̂), TimeStepConstant(Δt));
 
     # march
-    t = minimum([@elapsed ϕ(ψ̂, (0, Δt)) for i = 1:10])
+    t = minimum([@elapsed ϕ(ψ̂, (0, Δt)) for i = 1:30])
 
     @printf "%10.2f %04d\n" 10^9 * t / ((P+1) * (2LD+2) * log(2LD+2)) LD
     flush(stdout)
