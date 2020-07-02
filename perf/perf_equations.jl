@@ -9,18 +9,20 @@ LinearAlgebra.BLAS.set_num_threads(1)
 
 P  = 101
 Lx = 6π
+η  = 0.3
 α  = 2π / Lx
 Re = 1000
 Δt = 0.01;
+width = 3
 
-for LD in 251:350
+for LD in 250:255
     # active number of waves
     L = down_dealias_size(LD)
 
     # create fields
-    ψ = PhysicalField(P, LD, Lx, (x, y)->0.06*cos(3*α*x)*(1-y^2)^2 + 
-                                         0.04*cos(5*α*x)*(1-y^2)^2 + 
-                                         0.02*cos(6*α*x)*(1-y^2)^2)
+    ψ = PhysicalField(P, LD, Lx, η, (x, y)->0.06*cos(3*α*x)*(1-y^2)^2 + 
+                                            0.04*cos(5*α*x)*(1-y^2)^2 + 
+                                            0.02*cos(6*α*x)*(1-y^2)^2)
     ψ̂ = SpectralField(P, L, LD)
 
     # inverse transform
@@ -31,7 +33,7 @@ for LD in 251:350
     _fft(ψ̂, ψ);
 
     # create equations
-    eq = StreamFunEquation(P, L, LD, Lx, Re, Δt; flags=FFTW.PATIENT, timelimit=FFTW.NO_TIMELIMIT)
+    eq = StreamFunEquation(P, L, LD, Lx, η, Re, Δt; flags=FFTW.PATIENT, timelimit=FFTW.NO_TIMELIMIT, width=width)
 
     # create flow operator
     ϕ = flow(eq, eq, CNRK2(ψ̂), TimeStepConstant(Δt));

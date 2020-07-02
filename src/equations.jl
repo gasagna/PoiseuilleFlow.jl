@@ -1,9 +1,7 @@
 import LinearAlgebra: I, lu!, diagm, mul!, ldiv!
 import Flows
-import FDGrids
 
 export StreamFunEquation
-
 
 struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
     BpA::V1
@@ -18,31 +16,42 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
     tmpPField::TFT
     tmpSField::TFTT
 
-    function StreamFunEquation(P::Int,   L::Int,  LD::Int, 
-                              Lx::Real, Re::Real, Δt::Real; flags::UInt32=FFTW.EXHAUSTIVE, 
+    function StreamFunEquation(P::Int,   L::Int,  LD::Int, Lx::Real, 
+                               η::Real, Re::Real, Δt::Real; flags::UInt32=FFTW.EXHAUSTIVE, 
                                                         timelimit::Real=FFTW.NO_TIMELIMIT, 
                                                             width::Int=7)
-        # D  = chebdiff(P)
-        y  = chebpoints(P)
-        D  = FDGrids.full(FDGrids.DiffMatrix(y, width, 1))
-        D2 = FDGrids.full(FDGrids.DiffMatrix(y, width, 2))
+        # make mesh
+        y  = gridpoints(P+1, -1, 1, η)
+
+        # laminar flow and fundamental wavenumber
         u₀ = 1 .- y.^2
         α = 2π/Lx
 
         # matrices for the time stepping
+        D  = DiffMatrix(y, width,   1)
+        D2 = DiffMatrix(y, width,   2)
+        D4 = DiffMatrix(y, width+2, 4)
+
         B = [D2 - (l*α)^2*I for l = 0:L]
-        A = [B[l+1]*B[l+1]/Re - 2*im*l*α*I - diagm(0=>u₀*im*l*α)*B[l+1] for l = 0:L]
-        BpA = [B[l+1] .+ 0.5 .* Δt .* A[l+1] for l = 0:L]
-        BmA = [B[l+1] .- 0.5 .* Δt .* A[l+1] for l = 0:L]
-        BmAfact = [lu!( [ basis_vector(1, P+1)';
-                          D[1, :]';
-                          BmA[l+1][3:end-2, :];
-                          D[end, :]';
-                          basis_vector(P+1, P+1)' ] ) for l = 0:L]
+        A = [(D4 + (l*α)^4*I - D2*((l*α)^2*I) - ((l*α)^2*I)*D2)/Re- 2*im*l*α*I - diagm(0=>u₀*im*l*α)*B[l+1] for l = 0:L]
+        BpA = [B[l+1] + 0.5 * Δt * A[l+1] for l = 0:L]
+
+        # matrices for the boundary value problems
+        BmA = [B[l+1] - 0.5 * Δt * A[l+1] for l = 0:L]
+        
+        # add boundary conditions and factorise
+        BmAfact = map(0:L) do l
+            BmA_ = BmA[l+1]
+            BmA_[1,     :] .= basis_vector(1,  P+1)
+            BmA_[2,     :] .= D[1,   :]
+            BmA_[end-1, :] .= D[end, :]
+            BmA_[end,   :] .= basis_vector(P+1, P+1)
+            return lu(BmA_)
+        end
 
         # temporaries
         tmp = ntuple(i->zeros(Complex{Float64}, P+1), 2)
-        tmpPField = ntuple(i->PhysicalField(P, LD, Lx), 5)
+        tmpPField = ntuple(i->PhysicalField(P, LD, η, Lx), 5)
         tmpSField = ntuple(i->SpectralField(P, L, LD), 5)
 
         # ffts
@@ -51,7 +60,7 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
 
         # fast multpliers
         MD  = Multiplier(D)
-        MDD = Multiplier(D*D)
+        MDD = Multiplier(D2)
 
         return new{P,
                    L,

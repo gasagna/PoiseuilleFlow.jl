@@ -1,6 +1,7 @@
 module PoiseuilleFlow
 
 using LinearAlgebra
+using FDGrids
 
 include("physicalfield.jl")
 include("norms.jl")
