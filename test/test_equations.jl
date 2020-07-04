@@ -20,11 +20,6 @@
     # create flow operator
     ϕ = flow(eq, eq, CNRK2(u), TimeStepConstant(Δt))
 
-    # @btime $eq(0.0, $û, $N)
-
-    @btime $ϕ($u, (0, 5*$Δt))
-    # @time ϕ(û, (0, 1))
-    # @time ϕ(û, (0, 1))
-    # @time ϕ(û, (0, 1))
- 
+    # just go forward
+    ϕ(u, (0, 1)) 
 end

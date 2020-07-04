@@ -5,14 +5,11 @@ export StreamFunEquation
 
 basis_vector(i, P, ::Type{T}=Float64) where {T} = (out = zeros(T, P); out[i] = 1; out)
 
-struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
+struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
     BpA::V1
     BmAfact::V2
     tmp::NT
     Δt::Float64
-    α::Float64
-    D::M
-    D²::M
     fft::FT
     ifft::IFT
     tmpPField::TFT
@@ -62,10 +59,6 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
          fft = ForwardFFT!(tmpPField[1], flags, timelimit)
         ifft = InverseFFT!(tmpSField[1], flags, timelimit)
 
-        # fast multpliers
-        MD  = Multiplier(D1)
-        MDD = Multiplier(D2)
-
         return new{P,
                    L,
                    typeof(BpA),
@@ -74,9 +67,8 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
                    typeof(fft),
                    typeof(ifft),
                    typeof(tmpPField),
-                   typeof(tmpSField),
-                   typeof(MD)}(BpA, BmAfact, tmp, Δt, α,
-                   MD, MDD, fft, ifft, tmpPField, tmpSField)
+                   typeof(tmpSField)}(BpA, BmAfact, tmp, Δt, fft, 
+                                      ifft, tmpPField, tmpSField)
     end
 end
 
