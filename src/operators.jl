@@ -4,7 +4,7 @@ export laplacian!, ddx!, ddy!
 
 function laplacian!(∇ψ̂::SpectralField{P, L}, ψ̂::SpectralField{P, L}) where {P, L}
     mul!(∇ψ̂, grid(ψ̂).Ds[2], ψ̂)
-    α = 2π/domain(grid(ψ̂))[2]
+    α = 2π/domain(grid(ψ̂))[1]
     for l = 0:L, p = 1:P
         @inbounds  ∇ψ̂.data[p, l+1] -= (l*α)^2 * ψ̂.data[p, l+1]
     end
@@ -12,7 +12,7 @@ function laplacian!(∇ψ̂::SpectralField{P, L}, ψ̂::SpectralField{P, L}) whe
 end
 
 function ddx!(dψ̂dx::SpectralField{P, L}, ψ̂::SpectralField{P, L}) where {P, L}
-    α = 2π/domain(grid(ψ̂))[2]
+    α = 2π/domain(grid(ψ̂))[1]
     for l = 0:L, p = 1:P
         @inbounds dψ̂dx.data[p, l+1] = im*l*α*ψ̂[p, l+1]
     end

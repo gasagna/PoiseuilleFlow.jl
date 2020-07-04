@@ -24,7 +24,7 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
         x, y = points(grid)
 
         # domain
-        _, Lx = domain(grid)
+        Lx, _ = domain(grid)
 
         # size of transforms
         P, L = size(grid, :spectral)
