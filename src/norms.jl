@@ -1,14 +1,17 @@
 # dot product between two fields in physical space
-function LinearAlgebra.dot(u::PhysicalField{P, LD, Lx, T}, 
-                           v::PhysicalField{P, LD, Lx, T}) where {P, LD, Lx, T}
-    # we integrate over y using Clenshaw-Curtis quadrature and in x using a 
-    # trapezoidal rule, which is exponentially accurate for periodic data
-    w = chebweights(Val(P))
-    out = zero(T)
-    for _l = 1:(2*LD+2)
-        for _p = 1:P+1
-            out += u[_p, _l] * v[_p, _l] * w[_p]
+# we integrate over y using high-order quadrature and in x using a 
+# trapezoidal rule, which is exponentially accurate for periodic data
+function LinearAlgebra.dot(u::PhysicalField{P, LD}, 
+                           v::PhysicalField{P, LD}) where {P, LD}
+    w = weights(grid(u))
+    out = zero(eltype(u))
+    Lx, _ = domain(grid(u))
+    @inbounds for l = 1:(2*LD+2)
+        @simd for p = 1:P
+            out += u[p, l] * v[p, l] * w[p]
         end
     end
     return out*Lx/(2*LD+2)
 end
+
+LinearAlgebra.norm(u::PhysicalField) = sqrt(dot(u, u))

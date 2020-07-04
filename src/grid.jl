@@ -16,9 +16,8 @@ struct Grid{P, L, LD, DT, XY, W}
               Multiplier(FDGrids.DiffMatrix(y, width, 2)),
               Multiplier(FDGrids.DiffMatrix(y, width, 4)))
 
-        # weights for quadrature (trapz for now)
-        dy = diff(y)
-        w = [[dy[i]/2 for i = 1:P-1]..., 0] + [0, [dy[i-1]/2 for i = 2:P]...]
+        # weights for quadrature
+        w = FDGrids.quadweights(y, width-2)
 
         return new{P, L, LD, typeof(Ds), typeof(xy), typeof(w)}(Ds, xy, w, (Lx, 2))
     end

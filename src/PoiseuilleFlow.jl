@@ -12,6 +12,6 @@ include("operators.jl")
 include("multiplier.jl")
 include("equations.jl")
 
-# include("norms.jl")
+include("norms.jl")
 
 end
