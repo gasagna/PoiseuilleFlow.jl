@@ -19,11 +19,14 @@ for LD in 250:255
     # active number of waves
     L = down_dealias_size(LD)
 
+    # make grid
+    g = Grid(P, L, LD, 1; η=0.5, width=5)
+
     # create fields
-    ψ = PhysicalField(P, LD, Lx, η, (x, y)->0.06*cos(3*α*x)*(1-y^2)^2 + 
-                                            0.04*cos(5*α*x)*(1-y^2)^2 + 
-                                            0.02*cos(6*α*x)*(1-y^2)^2)
-    ψ̂ = SpectralField(P, L, LD)
+    ψ = PhysicalField(g, (x, y)->0.06*cos(3*α*x)*(1-y^2)^2 + 
+                                 0.04*cos(5*α*x)*(1-y^2)^2 + 
+                                 0.02*cos(6*α*x)*(1-y^2)^2)
+    ψ̂ = SpectralField(g)
 
     # inverse transform
     _ifft = InverseFFT!(ψ̂, FFTW.PATIENT, FFTW.NO_TIMELIMIT);
@@ -33,7 +36,7 @@ for LD in 250:255
     _fft(ψ̂, ψ);
 
     # create equations
-    eq = StreamFunEquation(P, L, LD, Lx, η, Re, Δt; flags=FFTW.PATIENT, timelimit=FFTW.NO_TIMELIMIT, width=width)
+    eq = StreamFunEquation(g, Re, Δt; flags=FFTW.PATIENT, timelimit=FFTW.NO_TIMELIMIT)
 
     # create flow operator
     ϕ = flow(eq, eq, CNRK2(ψ̂), TimeStepConstant(Δt));

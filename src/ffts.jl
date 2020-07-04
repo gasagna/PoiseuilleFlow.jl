@@ -10,9 +10,9 @@ up_dealias_size(L::Int) = L + L>>1
 down_dealias_size(LD::Int) = findlast(L->(up_dealias_size(L) ≤ LD), 1:LD)
 
 # set to zero Fourier coefficients
-function _apply_mask(û::SpectralField{P, LD, L}) where {P, LD, L}
+function _apply_mask(û::SpectralField{P, L, LD}) where {P, L, LD}
     for l = L+1:LD+1
-        @inbounds @simd for p = 1:P+1
+        @inbounds @simd for p = 1:P
             û.data[p, l+1] = 0
         end
     end

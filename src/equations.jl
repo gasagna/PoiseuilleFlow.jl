@@ -3,6 +3,8 @@ import Flows
 
 export StreamFunEquation
 
+basis_vector(i, P, ::Type{T}=Float64) where {T} = (out = zeros(T, P); out[i] = 1; out)
+
 struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
     BpA::V1
     BmAfact::V2
@@ -16,21 +18,23 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
     tmpPField::TFT
     tmpSField::TFTT
 
-    function StreamFunEquation(P::Int,   L::Int,  LD::Int, Lx::Real, 
-                               η::Real, Re::Real, Δt::Real; flags::UInt32=FFTW.EXHAUSTIVE, 
-                                                        timelimit::Real=FFTW.NO_TIMELIMIT, 
-                                                            width::Int=7)
+    function StreamFunEquation(grid::Grid, Re::Real, Δt::Real; 
+                               flags::UInt32=FFTW.PATIENT, timelimit::Real=FFTW.NO_TIMELIMIT)
         # make mesh
-        y  = gridpoints(P+1, -1, 1, η)
+        x, y = points(grid)
+
+        # domain
+        _, Lx = domain(grid)
+
+        # size of transforms
+        P, L = size(grid, :spectral)
 
         # laminar flow and fundamental wavenumber
         u₀ = 1 .- y.^2
         α = 2π/Lx
 
-        # matrices for the time stepping
-        D  = DiffMatrix(y, width,   1)
-        D2 = DiffMatrix(y, width,   2)
-        D4 = DiffMatrix(y, width+2, 4)
+        # extract actual DiffMatrices from the grid multipliers
+        D1, D2, D4  = ntuple(i->grid.Ds[i].mat, 3)
 
         B = [D2 - (l*α)^2*I for l = 0:L]
         A = [(D4 + (l*α)^4*I - D2*((l*α)^2*I) - ((l*α)^2*I)*D2)/Re- 2*im*l*α*I - diagm(0=>u₀*im*l*α)*B[l+1] for l = 0:L]
@@ -42,24 +46,24 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
         # add boundary conditions and factorise
         BmAfact = map(0:L) do l
             BmA_ = BmA[l+1]
-            BmA_[1,     :] .= basis_vector(1,  P+1)
-            BmA_[2,     :] .= D[1,   :]
-            BmA_[end-1, :] .= D[end, :]
-            BmA_[end,   :] .= basis_vector(P+1, P+1)
+            BmA_[1,     :] .= basis_vector(1, P)
+            BmA_[2,     :] .= D1[1,   :]
+            BmA_[end-1, :] .= D1[end, :]
+            BmA_[end,   :] .= basis_vector(P, P)
             return lu!(BmA_)
         end
 
         # temporaries
-        tmp = ntuple(i->zeros(Complex{Float64}, P+1), 2)
-        tmpPField = ntuple(i->PhysicalField(P, LD, η, Lx), 5)
-        tmpSField = ntuple(i->SpectralField(P, L, LD), 5)
+        tmp = ntuple(i->zeros(Complex{Float64}, P), 2)
+        tmpPField = ntuple(i->PhysicalField(grid), 5)
+        tmpSField = ntuple(i->SpectralField(grid), 5)
 
         # ffts
          fft = ForwardFFT!(tmpPField[1], flags, timelimit)
         ifft = InverseFFT!(tmpSField[1], flags, timelimit)
 
         # fast multpliers
-        MD  = Multiplier(D)
+        MD  = Multiplier(D1)
         MDD = Multiplier(D2)
 
         return new{P,
@@ -84,15 +88,15 @@ function (eq::StreamFunEquation)(t::Real, ψ̂::SpectralField, N̂::SpectralFiel
     u, v, N, dωdy, dωdx = eq.tmpPField
 
     # calculate velocities
-    ddy!(û, ψ̂, eq)
-    ddx!(v̂, ψ̂, eq); v̂ .*= -1
+    ddy!(û, ψ̂)
+    ddx!(v̂, ψ̂); v̂ .*= -1
 
     # calculate vorticity
-    laplacian!(ω̂, ψ̂, eq)
+    laplacian!(ω̂, ψ̂)
 
     # and its derivatives
-    ddy!(dω̂dy, ω̂, eq)
-    ddx!(dω̂dx, ω̂, eq)
+    ddy!(dω̂dy, ω̂)
+    ddx!(dω̂dx, ω̂)
 
     # transform
     eq.ifft(dωdy, dω̂dy)

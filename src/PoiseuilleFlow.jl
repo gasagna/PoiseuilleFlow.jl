@@ -2,14 +2,16 @@ module PoiseuilleFlow
 
 using LinearAlgebra
 using FDGrids
+using DelimitedFiles
 
+include("grid.jl")
 include("physicalfield.jl")
-include("norms.jl")
 include("spectralfield.jl")
-include("multiplier.jl")
 include("ffts.jl")
-include("chebutils.jl")
-include("equations.jl")
 include("operators.jl")
+include("multiplier.jl")
+include("equations.jl")
+
+# include("norms.jl")
 
 end

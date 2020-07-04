@@ -2,22 +2,22 @@ import LinearAlgebra: mul!
 
 export laplacian!, ddx!, ddy!
 
-function laplacian!(∇ψ̂::SpectralField{P, L}, ψ̂::SpectralField{P, L}, eq::StreamFunEquation{P, L}) where {P, L}
-    mul!(∇ψ̂, eq.D², ψ̂)
-    for l = 0:L, p = 0:P
-        @inbounds  ∇ψ̂.data[p+1, l+1] -= (l*eq.α)^2 * ψ̂.data[p+1, l+1]
+function laplacian!(∇ψ̂::SpectralField{P, L}, ψ̂::SpectralField{P, L}) where {P, L}
+    mul!(∇ψ̂, grid(ψ̂).Ds[2], ψ̂)
+    α = 2π/domain(grid(ψ̂))[2]
+    for l = 0:L, p = 1:P
+        @inbounds  ∇ψ̂.data[p, l+1] -= (l*α)^2 * ψ̂.data[p, l+1]
     end
     return ∇ψ̂
 end
 
-function ddx!(dψ̂dx::SpectralField{P, L}, ψ̂::SpectralField{P, L}, eq::StreamFunEquation{P, L}) where {P, L}
-    for l = 0:L, p = 0:P
-        @inbounds dψ̂dx.data[p+1, l+1] = im*l*eq.α*ψ̂[p+1, l+1]
+function ddx!(dψ̂dx::SpectralField{P, L}, ψ̂::SpectralField{P, L}) where {P, L}
+    α = 2π/domain(grid(ψ̂))[2]
+    for l = 0:L, p = 1:P
+        @inbounds dψ̂dx.data[p, l+1] = im*l*α*ψ̂[p, l+1]
     end
     return dψ̂dx
 end
 
-function ddy!(dψ̂dy::SpectralField{P, L}, ψ̂::SpectralField{P, L}, eq::StreamFunEquation{P, L}) where {P, L}
-    mul!(dψ̂dy, eq.D, ψ̂)
-    return dψ̂dy
-end
+ddy!(dψ̂dy::SpectralField, ψ̂::SpectralField) = 
+    mul!(dψ̂dy, grid(ψ̂).Ds[1], ψ̂)
