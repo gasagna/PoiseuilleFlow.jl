@@ -46,7 +46,7 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT, M}
             BmA_[2,     :] .= D[1,   :]
             BmA_[end-1, :] .= D[end, :]
             BmA_[end,   :] .= basis_vector(P+1, P+1)
-            return lu(BmA_)
+            return lu!(BmA_)
         end
 
         # temporaries
