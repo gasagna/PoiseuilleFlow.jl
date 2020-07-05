@@ -3,8 +3,6 @@ import Flows
 
 export StreamFunEquation
 
-basis_vector(i, P, ::Type{T}=Float64) where {T} = (out = zeros(T, P); out[i] = 1; out)
-
 struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
     BpA::V1
     BmAfact::V2
@@ -43,10 +41,10 @@ struct StreamFunEquation{P, L, V1, V2, NT, FT, IFT, TFT, TFTT}
         # add boundary conditions and factorise
         BmAfact = map(0:L) do l
             BmA_ = BmA[l+1]
-            BmA_[1,     :] .= basis_vector(1, P)
+            BmA_[1,     :] .= FDGrids.basis_vector(1, P)
             BmA_[2,     :] .= D1[1,   :]
             BmA_[end-1, :] .= D1[end, :]
-            BmA_[end,   :] .= basis_vector(P, P)
+            BmA_[end,   :] .= FDGrids.basis_vector(P, P)
             return lu!(BmA_)
         end
 
